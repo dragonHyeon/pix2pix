@@ -1,0 +1,38 @@
+nn.ConvTranspose2d vs nn.Upsample
+Upsampling: 보간법 사용하는 수동적인 feature engineering, network 가 알 수 없음
+ConvTranspose2d: 학습 가능한 parameter
+실제로 .parameters() 해서 순회해보면 Upsample 에서는 아무것도 나오지 않음
+ConvTranspose2d 에서는 파라미터 값들 쭉 출력됨
+
+nn.BCELoss()
+클래스가 두 개인 경우의 cross entropy loss
+torch 에서 제공하는 cross entropy loss 는 softmax 가 포함되어있는데 반해 bceloss 는
+softmax 가 포함되어 있지 않음. 따라서 nn.BCELoss()(input, target)의 input 에 대해
+미리 sigmoid 나 softmax 를 적용하여 0 과 1 사이의 값으로 (합하면 1이 되는 값 이지만 bceloss
+이므로 값이 애초에 하나임. 결국 그냥 하나의 확률값으로 나오게 됨) 변형해준 뒤 넣어주어야 함.
+input 에 0 과 1 사이 값 안들어가면 오류남
+RuntimeError: all elements of input should be between 0 and 1
+
+nn.BCEWithLogitsLoss() 이거를 사용하면 input 에 sigmoid 적용시켜줌. 그래서 이거 사용하면 됨.
+그리고 이게 sigmoid 쓰고 bceloss 쓰는 방법보다 더 안정적이라고 함. 이 경우는 input 값이 1000 이런게 들어오면
+내부적으로 알아서 1에 근접한 값으로 바뀌게 될 것임. sigmoid 함수 적용되니까
+
+하지만 나는 model 에서 결과 값의 0~1 정도 보기 위해 그냥 bceloss 쓰고 모델에서 sigmoid
+적용하는 방식 선택
+
+.detach()
+Discriminator 학습 시킬때 fake image 에 대해서 detach() 해줘야 함. detach 안하면 fake image 만든 generator 에도 가중치 학습이 전달 되는데 그러면 안됨
+Discriminator 는 그저 만들어지 이미지 그 자체만을 보고 학습을 해야지 그걸 만든 generator 에 가지 영향을 주면 안됨.
+generator 학습은 generator 가 discriminator 속이는 과정에서 더 잘 속이는 이미지 만들도록 학습하려 할 때 볼 것임
+
+zero_grad()
+zero_grad 실수로 빼먹었더니 학습 엉망진창으로 진행이 안됐었음.
+
+normalize
+
+
+<item>
+# BCE loss 계산
+batch_bce_loss = F.binary_cross_entropy(input=output, target=label).cpu().detach().numpy()
+여기서 .cpu().detach().numpy() 는 추후에 값 평균 낼때 numpy 함수 이용하려고 numpy 로 바꾸기 위함인데 이럴필요 없이 그냥 .item() 으로 처리해줘도 됨
+batch_bce_loss = F.binary_cross_entropy(input=output, target=label).item()
