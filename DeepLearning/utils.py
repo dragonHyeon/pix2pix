@@ -65,15 +65,27 @@ def save_pics(pics_list, filepath, title):
     """
 
     # plt 로 시각화 할 수 있는 형식으로 변환
-    plt_pics_list = [generated_image.cpu().detach().reshape(-1, 64, 64).permute(1, 2, 0) for generated_image in pics_list]
+    plt_pics_list = [(
+        a.cpu().reshape(-1, 32, 32).permute(1, 2, 0),
+        b.cpu().reshape(-1, 32, 32).permute(1, 2, 0),
+        fake_b.cpu().detach().reshape(-1, 32, 32).permute(1, 2, 0)
+    ) for a, b, fake_b in pics_list]
 
     # plt 에 그리기
-    fig, axs = plt.subplots(nrows=4, ncols=5, figsize=(15, 10))
+    fig, axs = plt.subplots(nrows=ConstVar.NUM_PICS_LIST, ncols=3, figsize=(10, 15))
     fig.suptitle(t=title, fontsize=18)
-    axs = axs.flatten()
-    for num, generated_image in enumerate(plt_pics_list):
-        axs[num].imshow(X=generated_image, cmap='gray')
-        axs[num].axis('off')
+    for num, (a, b, fake_b) in enumerate(plt_pics_list):
+        axs[num, 0].imshow(X=a, cmap='gray')
+        axs[num, 0].axis('off')
+        axs[num, 1].imshow(X=b, cmap='gray')
+        axs[num, 1].axis('off')
+        axs[num, 2].imshow(X=fake_b, cmap='gray')
+        axs[num, 2].axis('off')
+
+        if num == 0:
+            axs[num, 0].set_title('A')
+            axs[num, 1].set_title('B')
+            axs[num, 2].set_title('Fake B')
 
     # 저장하고자 하는 경로의 상위 디렉터리가 존재하지 않는 경우 상위 경로 생성
     DragonLib.make_parent_dir_if_not_exits(target_path=filepath)

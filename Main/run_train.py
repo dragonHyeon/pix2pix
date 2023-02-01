@@ -127,8 +127,8 @@ def run_program(args):
     from DeepLearning.test import Tester
     from DeepLearning.dataloader import SIGNSDataset
     from DeepLearning.model import Generator, Discriminator
-    from DeepLearning.loss import loss_fn
-    from DeepLearning.metric import bce_loss
+    from DeepLearning.loss import loss_fn_BCE, loss_fn_L1
+    from DeepLearning.metric import bce_loss, l1_loss
 
     # GPU / CPU 설정
     device = ConstVar.DEVICE_CUDA if torch.cuda.is_available() else ConstVar.DEVICE_CPU
@@ -163,7 +163,8 @@ def run_program(args):
                       modelD=modelD,
                       optimizerG=optimizerG,
                       optimizerD=optimizerD,
-                      loss_fn=loss_fn,
+                      loss_fn_BCE=loss_fn_BCE,
+                      loss_fn_L1=loss_fn_L1,
                       train_dataloader=train_dataloader,
                       device=device)
 
@@ -173,7 +174,8 @@ def run_program(args):
                     tracking_frequency=args.tracking_frequency,
                     Tester=Tester,
                     test_dataloader=test_dataloader,
-                    metric_fn=bce_loss,
+                    metric_fn_BCE=bce_loss,
+                    metric_fn_L1=l1_loss,
                     checkpoint_file=args.checkpoint_file)
 
 

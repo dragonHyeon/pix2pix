@@ -77,7 +77,7 @@ def run_program(args):
     from DeepLearning.test import Tester
     from DeepLearning.dataloader import SIGNSDataset
     from DeepLearning.model import Generator, Discriminator
-    from DeepLearning.metric import bce_loss
+    from DeepLearning.metric import bce_loss, l1_loss
 
     # GPU / CPU 설정
     device = ConstVar.DEVICE_CUDA if torch.cuda.is_available() else ConstVar.DEVICE_CPU
@@ -96,7 +96,8 @@ def run_program(args):
     # 모델 테스트 객체 선언
     tester = Tester(modelG=modelG,
                     modelD=modelD,
-                    metric_fn=bce_loss,
+                    metric_fn_BCE=bce_loss,
+                    metric_fn_L1=l1_loss,
                     test_dataloader=test_dataloader,
                     device=device)
 

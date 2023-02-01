@@ -10,14 +10,15 @@ from DeepLearning import utils
 
 
 class Trainer:
-    def __init__(self, modelG, modelD, optimizerG, optimizerD, loss_fn, train_dataloader, device):
+    def __init__(self, modelG, modelD, optimizerG, optimizerD, loss_fn_BCE, loss_fn_L1, train_dataloader, device):
         """
         * 학습 관련 클래스
         :param modelG: 학습 시킬 모델. 생성자
         :param modelD: 학습 시킬 모델. 판별자
         :param optimizerG: 생성자 학습 optimizer
         :param optimizerD: 판별자 학습 optimizer
-        :param loss_fn: 손실 함수
+        :param loss_fn_BCE: 손실 함수 (BCE loss)
+        :param loss_fn_L1: 손실 함수 (L1 loss)
         :param train_dataloader: 학습용 데이터로더
         :param device: GPU / CPU
         """
@@ -29,13 +30,14 @@ class Trainer:
         self.optimizerG = optimizerG
         self.optimizerD = optimizerD
         # 손실 함수
-        self.loss_fn = loss_fn
+        self.loss_fn_BCE = loss_fn_BCE
+        self.loss_fn_L1 = loss_fn_L1
         # 학습용 데이터로더
         self.train_dataloader = train_dataloader
         # GPU / CPU
         self.device = device
 
-    def running(self, num_epoch, output_dir, tracking_frequency, Tester, test_dataloader, metric_fn, checkpoint_file=None):
+    def running(self, num_epoch, output_dir, tracking_frequency, Tester, test_dataloader, metric_fn_BCE, metric_fn_L1, checkpoint_file=None):
         """
         * 학습 셋팅 및 진행
         :param num_epoch: 학습 반복 횟수
@@ -43,13 +45,11 @@ class Trainer:
         :param tracking_frequency: 체크포인트 파일 저장 및 학습 진행 기록 빈도수
         :param Tester: 학습 성능 체크하기 위한 테스트 관련 클래스
         :param test_dataloader: 학습 성능 체크하기 위한 테스트용 데이터로더
-        :param metric_fn: 학습 성능 체크하기 위한 metric
+        :param metric_fn_BCE: 학습 성능 체크하기 위한 metric (BCE loss)
+        :param metric_fn_L1: 학습 성능 체크하기 위한 metric (L1 loss)
         :param checkpoint_file: 불러올 체크포인트 파일
         :return: 학습 완료 및 체크포인트 파일 생성됨
         """
-
-        # 학습 중간 중간 생성자로 이미지를 생성하기 위한 샘플 noise z 모음
-        sample_z_collection = torch.randn(size=(20, 100, 1, 1), device=self.device)
 
         # epoch 초기화
         start_epoch_num = ConstVar.INITIAL_START_EPOCH_NUM
@@ -79,10 +79,11 @@ class Trainer:
                 # 현재 모델을 테스트하기 위한 테스트 객체 생성
                 tester = Tester(modelG=deepcopy(x=self.modelG),
                                 modelD=deepcopy(x=self.modelD),
-                                metric_fn=metric_fn,
+                                metric_fn_BCE=metric_fn_BCE,
+                                metric_fn_L1=metric_fn_L1,
                                 test_dataloader=test_dataloader,
                                 device=self.device)
-                tester.running(sample_z_collection=sample_z_collection)
+                tester.running()
 
                 # 체크포인트 저장
                 checkpoint_dir = UtilLib.getNewPath(path=output_dir,
@@ -100,7 +101,7 @@ class Trainer:
                 # 그래프 시각화 진행
                 self._draw_graph(score=tester.score,
                                  current_epoch_num=current_epoch_num,
-                                 title=metric_fn.__name__)
+                                 title='Loss Progress')
 
                 # 결과물 시각화 진행
                 pics_dir = UtilLib.getNewPath(path=output_dir,
@@ -121,43 +122,45 @@ class Trainer:
         self.modelG.train()
         self.modelD.train()
 
-        # x shape: (N, 3, 64, 64)
-        # y shape: (N)
-        for x in tqdm(self.train_dataloader, desc='train dataloader', leave=False):
+        # a shape: (N, 3, 224, 224)
+        # b shape: (N, 3, 224, 224)
+        for a, b in tqdm(self.train_dataloader, desc='train dataloader', leave=False):
 
             # 현재 배치 사이즈
-            batch_size = x.shape[0]
+            batch_size = a.shape[0]
 
             # real image label
             real_label = torch.ones(batch_size, device=self.device)
             # fake image label
             fake_label = torch.zeros(batch_size, device=self.device)
 
-            # noise z
-            z = torch.randn(size=(batch_size, 100, 1, 1), device=self.device)
-
-            # 텐서를 해당 디바이스로 이동
-            x = x.to(self.device)
+            # 각 텐서를 해당 디바이스로 이동
+            a = a.to(self.device)
+            b = b.to(self.device)
 
             # 판별자 학습
             self.modelD.zero_grad()
             # real image 로 학습
-            output = self.modelD(x)
-            lossD_real = self.loss_fn(output, real_label)
+            output = self.modelD(b)
+            lossD_real = self.loss_fn_BCE(output, real_label)
             lossD_real.backward()
             # fake image 로 학습
-            fake_x = self.modelG(z)
-            output = self.modelD(fake_x.detach())
-            lossD_fake = self.loss_fn(output, fake_label)
+            fake_b = self.modelG(a)
+            output = self.modelD(fake_b.detach())
+            lossD_fake = self.loss_fn_BCE(output, fake_label)
             lossD_fake.backward()
             self.optimizerD.step()
 
             # 생성자 학습
             self.modelG.zero_grad()
-            fake_x = self.modelG(z)
-            output = self.modelD(fake_x)
-            lossG = self.loss_fn(output, real_label)
-            lossG.backward()
+            # 판별자의 결과에 대한 BCE loss 로 학습
+            fake_b = self.modelG(a)
+            output = self.modelD(fake_b)
+            lossG_BCE = self.loss_fn_BCE(output, real_label)
+            lossG_BCE.backward()
+            # fake_b 와 b 간의 L1 loss 로 학습
+            lossG_L1 = self.loss_fn_L1(fake_b, b)
+            lossG_L1.backward()
             self.optimizerG.step()
 
     def _check_is_best(self, tester, best_checkpoint_dir):
