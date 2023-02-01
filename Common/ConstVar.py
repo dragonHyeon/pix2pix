@@ -15,6 +15,10 @@ CHECKPOINT_BEST_FILE_NAME = 'best_model.ckpt'
 MODE_TRAIN = 'train'
 MODE_TEST = 'test'
 
+# 데이터 변환 방향
+A2B = 'a2b'
+B2A = 'b2a'
+
 # 디바이스 종류
 DEVICE_CUDA = 'cuda'
 DEVICE_CPU = 'cpu'
