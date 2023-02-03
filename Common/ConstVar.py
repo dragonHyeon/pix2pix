@@ -38,7 +38,7 @@ TRACKING_FREQUENCY = 1
 NUM_PICS_LIST = 10
 
 # 그 외 기본 설정 값
-RESIZE_SIZE = 64
+RESIZE_SIZE = 256
 LAMBDA = 100
 
 # state 저장시 딕셔너리 키 값
