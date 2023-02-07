@@ -128,11 +128,13 @@ class Trainer:
 
             # 현재 배치 사이즈
             batch_size = a.shape[0]
+            # 패치 한 개 사이즈
+            patch_size = (1, int(a.shape[2] / 16), int(a.shape[3] / 16))
 
             # real image label
-            real_label = torch.ones(batch_size, device=self.device)
+            real_label = torch.ones(size=(batch_size, *patch_size), device=self.device)
             # fake image label
-            fake_label = torch.zeros(batch_size, device=self.device)
+            fake_label = torch.zeros(size=(batch_size, *patch_size), device=self.device)
 
             # 각 텐서를 해당 디바이스로 이동
             a = a.to(self.device)
@@ -141,12 +143,12 @@ class Trainer:
             # 판별자 학습
             self.modelD.zero_grad()
             # real image 로 학습
-            output = self.modelD(b)
+            output = self.modelD(b, a)
             lossD_real = self.loss_fn_BCE(output, real_label)
             lossD_real.backward()
             # fake image 로 학습
             fake_b = self.modelG(a)
-            output = self.modelD(fake_b.detach())
+            output = self.modelD(fake_b.detach(), a)
             lossD_fake = self.loss_fn_BCE(output, fake_label)
             lossD_fake.backward()
             self.optimizerD.step()
@@ -155,9 +157,9 @@ class Trainer:
             self.modelG.zero_grad()
             # 판별자의 결과에 대한 BCE loss 로 학습
             fake_b = self.modelG(a)
-            output = self.modelD(fake_b)
+            output = self.modelD(fake_b, a)
             lossG_BCE = self.loss_fn_BCE(output, real_label)
-            lossG_BCE.backward()
+            lossG_BCE.backward(retain_graph=True)
             # fake_b 와 b 간의 L1 loss 로 학습
             lossG_L1 = self.loss_fn_L1(fake_b, b)
             lossG_L1.backward()

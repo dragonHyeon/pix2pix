@@ -2,8 +2,8 @@ import os
 
 # 파일 경로
 PROJECT_ROOT_DIRECTORY = os.path.dirname(os.getcwd())
-DATA_DIR_TRAIN = '{0}/RES/SIGNS dataset/train_signs/'.format(PROJECT_ROOT_DIRECTORY)
-DATA_DIR_TEST = '{0}/RES/SIGNS dataset/test_signs/'.format(PROJECT_ROOT_DIRECTORY)
+DATA_DIR_TRAIN = '{0}/RES/facades/train/'.format(PROJECT_ROOT_DIRECTORY)
+DATA_DIR_TEST = '{0}/RES/facades/test/'.format(PROJECT_ROOT_DIRECTORY)
 OUTPUT_DIR = '{0}/DATA/'.format(PROJECT_ROOT_DIRECTORY)
 OUTPUT_DIR_SUFFIX_CHECKPOINT = 'checkpoint'
 OUTPUT_DIR_SUFFIX_PICS = 'pics'

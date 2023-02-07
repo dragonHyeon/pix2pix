@@ -38,6 +38,12 @@ def arguments():
 
     from Common import ConstVar
 
+    # parser 에서 사용될 선택지 목록. 데이터 변환 방향
+    direction_list = [
+        ConstVar.A2B,
+        ConstVar.B2A
+    ]
+
     # parser 생성
     parser = argparse.ArgumentParser(prog="Deep Learning Study Project Test",
                                      description="* Run this to test the model.")
@@ -49,6 +55,17 @@ def arguments():
                         help='set test data directory',
                         default=ConstVar.DATA_DIR_TEST,
                         dest="test_data_dir")
+
+    # a2b, b2a 변환 방향 선택
+    parser.add_argument("--direction",
+                        type=str,
+                        help='direction selection ({0} / {1})'.format(
+                            ConstVar.A2B,
+                            ConstVar.B2A
+                        ),
+                        choices=direction_list,
+                        default=ConstVar.B2A,
+                        dest='direction')
 
     # 불러올 체크포인트 파일 경로
     parser.add_argument("--checkpoint_file",
@@ -75,23 +92,24 @@ def run_program(args):
 
     from Common import ConstVar
     from DeepLearning.test import Tester
-    from DeepLearning.dataloader import SIGNSDataset
-    from DeepLearning.model import Generator, Discriminator
+    from DeepLearning.dataloader import FACADESDataset
+    from DeepLearning.model import GeneratorUNet, Discriminator
     from DeepLearning.metric import bce_loss, l1_loss
 
     # GPU / CPU 설정
     device = ConstVar.DEVICE_CUDA if torch.cuda.is_available() else ConstVar.DEVICE_CPU
 
     # 모델 선언
-    modelG = Generator()
+    modelG = GeneratorUNet()
     modelD = Discriminator()
     # 각 모델을 해당 디바이스로 이동
     modelG.to(device)
     modelD.to(device)
 
     # 테스트용 데이터로더 선언
-    test_dataloader = DataLoader(dataset=SIGNSDataset(data_dir=args.test_data_dir,
-                                                      mode_train_test=ConstVar.MODE_TEST))
+    test_dataloader = DataLoader(dataset=FACADESDataset(data_dir=args.test_data_dir,
+                                                        direction=args.direction,
+                                                        mode_train_test=ConstVar.MODE_TEST))
 
     # 모델 테스트 객체 선언
     tester = Tester(modelG=modelG,

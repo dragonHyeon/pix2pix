@@ -68,23 +68,25 @@ class Tester:
 
             # 현재 배치 사이즈
             batch_size = a.shape[0]
+            # 패치 한 개 사이즈
+            patch_size = (1, int(a.shape[2] / 16), int(a.shape[3] / 16))
 
             # real image label
-            real_label = torch.ones(batch_size, device=self.device)
+            real_label = torch.ones(size=(batch_size, *patch_size), device=self.device)
             # fake image label
-            fake_label = torch.zeros(batch_size, device=self.device)
+            fake_label = torch.zeros(size=(batch_size, *patch_size), device=self.device)
 
             # 각 텐서를 해당 디바이스로 이동
             a = a.to(self.device)
             b = b.to(self.device)
 
             # 판별자 real image 순전파
-            output = self.modelD(b)
+            output = self.modelD(b, a)
             scoreD_real = self.metric_fn_BCE(output=output,
                                              label=real_label)
             # 판별자 fake image 순전파
             fake_b = self.modelG(a)
-            output = self.modelD(fake_b)
+            output = self.modelD(fake_b, a)
             scoreD_fake = self.metric_fn_BCE(output=output,
                                              label=fake_label)
             # 배치 마다의 D loss 계산
@@ -93,7 +95,7 @@ class Tester:
 
             # 생성자 순전파
             fake_b = self.modelG(a)
-            output = self.modelD(fake_b)
+            output = self.modelD(fake_b, a)
             scoreG_BCE = self.metric_fn_BCE(output=output,
                                             label=real_label)
             # L1 loss 계산
