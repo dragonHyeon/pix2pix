@@ -9,7 +9,9 @@ utils 에서 imshow(X=a) -> imshow(X=a*0.5+0.5) 로 변경
 
 RuntimeError: Trying to backward through the graph a second time (or directly access saved variables after they have already been freed). Saved intermediate values of the graph are freed when you call .backward() or autograd.grad(). Specify retain_graph=True if you need to backward through the graph a second time or if you need to access saved variables after calling backward.
 lossG_BCE.backward() -> lossG_BCE.backward(retain_graph=True) 이렇게 수정하니까 해결
-연관된 값에 대해 backward 가 여러번 일어나게 되면 초기화 되지 않게 retain_graph=True 를 해주어야 한다
+연관된 값에 대해 backward 가 여러번 일어나게 되면 다음 backward 차례에 현재 backward 했던 정보가 초기화 되지 않게
+retain_graph=True 를 해주어야 한다
+자연스럽게 마지막 backward 차례에는 꼭 retain_graph=True 를 선언할 필요가 없다
 loss 를 여러개 함께 조합해서 사용해야 하는 경우 다음 참조
 https://stackoverflow.com/questions/53994625/how-can-i-process-multi-loss-in-pytorch
 
