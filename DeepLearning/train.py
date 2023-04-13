@@ -122,8 +122,8 @@ class Trainer:
         self.modelG.train()
         self.modelD.train()
 
-        # a shape: (N, 3, 224, 224)
-        # b shape: (N, 3, 224, 224)
+        # a shape: (N, 3, 256, 256)
+        # b shape: (N, 3, 256, 256)
         for a, b in tqdm(self.train_dataloader, desc='train dataloader', leave=False):
 
             # 현재 배치 사이즈

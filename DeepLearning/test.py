@@ -62,8 +62,8 @@ class Tester:
         # 생성된 이미지 담을 리스트
         self.pics_list = list()
 
-        # a shape: (N, 3, 224, 224)
-        # b shape: (N, 3, 224, 224)
+        # a shape: (N, 3, 256, 256)
+        # b shape: (N, 3, 256, 256)
         for a, b in tqdm(self.test_dataloader, desc='test dataloader', leave=False):
 
             # 현재 배치 사이즈
