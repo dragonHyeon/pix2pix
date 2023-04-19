@@ -4,8 +4,8 @@ import torch.nn.functional as F
 def bce_loss(output, label):
     """
     * 해당 배치의 BCE loss 구하기
-    :param output: shape: (batch)
-    :param label: shape: (batch)
+    :param output: shape: (batch, patch_size)
+    :param label: shape: (batch, patch_size)
     :return: 해당하는 배치의 BCE loss
     """
 

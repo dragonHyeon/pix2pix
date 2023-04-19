@@ -15,5 +15,18 @@ retain_graph=True 를 해주어야 한다
 loss 를 여러개 함께 조합해서 사용해야 하는 경우 다음 참조
 https://stackoverflow.com/questions/53994625/how-can-i-process-multi-loss-in-pytorch
 
+아래와 같은 경우
+discriminator backward 여러번 해도 retain_graph=True 안해도 괜찮은 이유는 매번 새로운 modelD 로 그래프를 생성했었기 때문
+            # real image 로 학습
+            output = self.modelD(b, a)
+            lossD_real = self.loss_fn_BCE(output, real_label)
+            lossD_real.backward()
+            # fake image 로 학습
+            fake_b = self.modelG(a)
+            output = self.modelD(fake_b.detach(), a)
+            lossD_fake = self.loss_fn_BCE(output, fake_label)
+            lossD_fake.backward()
+            self.optimizerD.step()
+
 PatchGAN 이란 discriminator 의 출력으로 (N) 이 아닌 (N, 1, 16, 16) 으로 출력하여 계산하는 방식
 real_label, fake_label 의 모양도 (batch_size) 에서 (batch_size, *patch_size) 로 바뀜

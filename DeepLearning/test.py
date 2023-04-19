@@ -55,9 +55,9 @@ class Tester:
         self.modelG.eval()
         self.modelD.eval()
 
-        # 배치 마다의 G / D loss 담을 리스트
-        batch_loss_listG = list()
-        batch_loss_listD = list()
+        # 배치 마다의 G / D score 담을 리스트
+        batch_score_listG = list()
+        batch_score_listD = list()
 
         # 생성된 이미지 담을 리스트
         self.pics_list = list()
@@ -80,30 +80,37 @@ class Tester:
             a = a.to(self.device)
             b = b.to(self.device)
 
-            # 판별자 real image 순전파
-            output = self.modelD(b, a)
-            scoreD_real = self.metric_fn_BCE(output=output,
-                                             label=real_label)
-            # 판별자 fake image 순전파
-            fake_b = self.modelG(a)
-            output = self.modelD(fake_b, a)
-            scoreD_fake = self.metric_fn_BCE(output=output,
-                                             label=fake_label)
-            # 배치 마다의 D loss 계산
-            scoreD = scoreD_real + scoreD_fake
-            batch_loss_listD.append(scoreD)
+            # --------------------
+            #  Test Discriminator
+            # --------------------
 
-            # 생성자 순전파
+            # GAN loss
+            scoreD_GAN_real = self.metric_fn_BCE(self.modelD(b, a), real_label)
             fake_b = self.modelG(a)
-            output = self.modelD(fake_b, a)
-            scoreG_BCE = self.metric_fn_BCE(output=output,
-                                            label=real_label)
-            # L1 loss 계산
-            scoreG_L1 = self.metric_fn_L1(fake_b=fake_b,
-                                          b=b)
-            # 배치 마다의 생성자 G loss 계산
-            scoreG = scoreG_BCE + ConstVar.LAMBDA * scoreG_L1
-            batch_loss_listG.append(scoreG)
+            scoreD_GAN_fake = self.metric_fn_BCE(self.modelD(fake_b.detach(), a), fake_label)
+            scoreD_GAN = scoreD_GAN_real + scoreD_GAN_fake
+
+            # Total loss
+            scoreD = scoreD_GAN
+
+            # 배치 마다의 판별자 D score 계산
+            batch_score_listD.append(scoreD)
+
+            # ----------------
+            #  Test Generator
+            # ----------------
+
+            # GAN loss
+            scoreG_GAN = self.metric_fn_BCE(self.modelD(fake_b, a), real_label)
+
+            # L1 loss
+            scoreG_L1 = self.metric_fn_L1(fake_b, b)
+
+            # Total loss
+            scoreG = scoreG_GAN + ConstVar.LAMBDA * scoreG_L1
+
+            # 배치 마다의 생성자 G score 계산
+            batch_score_listG.append(scoreG)
 
             # a, b, fake_b 이미지 쌍 담기 (설정한 개수 만큼)
             if len(self.pics_list) < ConstVar.NUM_PICS_LIST:
@@ -111,6 +118,6 @@ class Tester:
 
         # score 기록
         self.score = {
-            ConstVar.KEY_SCORE_G: np.mean(batch_loss_listG),
-            ConstVar.KEY_SCORE_D: np.mean(batch_loss_listD)
+            ConstVar.KEY_SCORE_G: np.mean(batch_score_listG),
+            ConstVar.KEY_SCORE_D: np.mean(batch_score_listD)
         }

@@ -140,29 +140,40 @@ class Trainer:
             a = a.to(self.device)
             b = b.to(self.device)
 
-            # 판별자 학습
-            self.modelD.zero_grad()
-            # real image 로 학습
-            output = self.modelD(b, a)
-            lossD_real = self.loss_fn_BCE(output, real_label)
-            lossD_real.backward()
-            # fake image 로 학습
+            # ---------------------
+            #  Train Discriminator
+            # ---------------------
+
+            # GAN loss
+            lossD_GAN_real = self.loss_fn_BCE(self.modelD(b, a), real_label)
             fake_b = self.modelG(a)
-            output = self.modelD(fake_b.detach(), a)
-            lossD_fake = self.loss_fn_BCE(output, fake_label)
-            lossD_fake.backward()
+            lossD_GAN_fake = self.loss_fn_BCE(self.modelD(fake_b.detach(), a), fake_label)
+            lossD_GAN = lossD_GAN_real + lossD_GAN_fake
+
+            # Total loss
+            lossD = lossD_GAN
+
+            # 역전파
+            self.modelD.zero_grad()
+            lossD.backward()
             self.optimizerD.step()
 
-            # 생성자 학습
-            self.modelG.zero_grad()
-            # 판별자의 결과에 대한 BCE loss 로 학습
-            fake_b = self.modelG(a)
-            output = self.modelD(fake_b, a)
-            lossG_BCE = self.loss_fn_BCE(output, real_label)
-            lossG_BCE.backward(retain_graph=True)
-            # fake_b 와 b 간의 L1 loss 로 학습
+            # -----------------
+            #  Train Generator
+            # -----------------
+
+            # GAN loss
+            lossG_GAN = self.loss_fn_BCE(self.modelD(fake_b, a), real_label)
+
+            # L1 loss
             lossG_L1 = self.loss_fn_L1(fake_b, b)
-            lossG_L1.backward()
+
+            # Total loss
+            lossG = lossG_GAN + ConstVar.LAMBDA * lossG_L1
+
+            # 역전파
+            self.modelG.zero_grad()
+            lossG.backward()
             self.optimizerG.step()
 
     def _check_is_best(self, tester, best_checkpoint_dir):
