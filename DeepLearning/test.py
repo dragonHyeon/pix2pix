@@ -87,7 +87,7 @@ class Tester:
             # GAN loss
             scoreD_GAN_real = self.metric_fn_BCE(self.modelD(b, a), real_label)
             fake_b = self.modelG(a)
-            scoreD_GAN_fake = self.metric_fn_BCE(self.modelD(fake_b.detach(), a), fake_label)
+            scoreD_GAN_fake = self.metric_fn_BCE(self.modelD(fake_b, a), fake_label)
             scoreD_GAN = scoreD_GAN_real + scoreD_GAN_fake
 
             # Total loss
