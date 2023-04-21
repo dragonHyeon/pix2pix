@@ -68,13 +68,16 @@ class Trainer:
             start_epoch_num = state[ConstVar.KEY_STATE_EPOCH] + 1
 
         # num epoch 만큼 학습 반복
-        for current_epoch_num, count in enumerate(tqdm(range(num_epoch), desc='training process'), start=start_epoch_num):
+        for current_epoch_num in tqdm(range(start_epoch_num, num_epoch + 1),
+                                      desc='training process',
+                                      total=num_epoch,
+                                      initial=start_epoch_num - 1):
 
             # 학습 진행
             self._train()
 
             # 학습 진행 기록 주기마다 학습 진행 저장 및 시각화
-            if (count + 1) % tracking_frequency == 0:
+            if current_epoch_num % tracking_frequency == 0:
 
                 # 현재 모델을 테스트하기 위한 테스트 객체 생성
                 tester = Tester(modelG=deepcopy(x=self.modelG),
