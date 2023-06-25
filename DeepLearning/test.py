@@ -1,123 +1,145 @@
+import os
+
 import torch
-import numpy as np
-from tqdm import tqdm
+from torchvision import transforms
+from PIL import Image
 
 from Common import ConstVar
-from DeepLearning import utils
+from Lib import UtilLib, DragonLib
 
 
 class Tester:
-    def __init__(self, modelG, modelD, metric_fn_BCE, metric_fn_L1, test_dataloader, device):
+    def __init__(self, G, device):
         """
         * 테스트 관련 클래스
-        :param modelG: 테스트 할 모델. 생성자
-        :param modelD: 테스트 할 모델. 판별자
-        :param metric_fn_BCE: 학습 성능 체크하기 위한 metric (BCE loss)
-        :param metric_fn_L1: 학습 성능 체크하기 위한 metric (L1 loss)
-        :param test_dataloader: 테스트용 데이터로더
+        :param G: 테스트 할 모델. 생성자
         :param device: GPU / CPU
         """
 
         # 테스트 할 모델
-        self.modelG = modelG
-        self.modelD = modelD
-        # 학습 성능 체크하기 위한 metric
-        self.metric_fn_BCE = metric_fn_BCE
-        self.metric_fn_L1 = metric_fn_L1
-        # 테스트용 데이터로더
-        self.test_dataloader = test_dataloader
+        self.G = G
         # GPU / CPU
         self.device = device
 
-    def running(self, checkpoint_file=None):
+    def running(self, input_dir, output_dir, generated_folder_name):
         """
         * 테스트 셋팅 및 진행
-        :param checkpoint_file: 불러올 체크포인트 파일
+        :param input_dir: 입력 이미지 파일 디렉터리 위치
+        :param output_dir: 결과물 파일 저장할 디렉터리 위치
+        :param generated_folder_name: 생성된 이미지 파일 저장될 폴더명
         :return: 테스트 수행됨
         """
 
-        # 불러올 체크포인트 파일 있을 경우 불러오기
-        if checkpoint_file:
-            state = utils.load_checkpoint(filepath=checkpoint_file)
-            self.modelG.load_state_dict(state[ConstVar.KEY_STATE_MODEL_G])
-            self.modelD.load_state_dict(state[ConstVar.KEY_STATE_MODEL_D])
-
         # 테스트 진행
-        self._test()
+        result_list = self._test(input_dir=input_dir)
 
-    def _test(self):
+        # standardization 하는데 사용된 std, mean 값
+        mean = torch.tensor(ConstVar.NORMALIZE_MEAN)
+        std = torch.tensor(ConstVar.NORMALIZE_STD)
+
+        for generated_img, img_filepath in result_list:
+
+            # 시각화를 위해 standardization 한 거 원래대로 되돌리기, 값 범위 0 에서 1 로 제한 및 PIL image 로 변환
+            generated_img_pil = self._convert_img(fake_x=generated_img, mean=mean, std=std)
+
+            # 이미지 저장 경로
+            img_filename = UtilLib.getOnlyFileName(filePath=img_filepath)
+            generated_img_dir = UtilLib.getNewPath(path=output_dir, add=ConstVar.OUTPUT_DIR_SUFFIX_GENERATED_IMG.format(generated_folder_name))
+            original_img_dir = UtilLib.getNewPath(path=generated_img_dir, add=ConstVar.OUTPUT_DIR_SUFFIX_ORIGINAL)
+            transferred_img_dir = UtilLib.getNewPath(path=generated_img_dir, add=ConstVar.OUTPUT_DIR_SUFFIX_TRANSFERRED)
+            original_img_filepath = UtilLib.getNewPath(path=original_img_dir, add=ConstVar.GENERATED_IMG_FILE_NAME.format(img_filename))
+            transferred_img_filepath = UtilLib.getNewPath(path=transferred_img_dir, add=ConstVar.GENERATED_IMG_FILE_NAME.format(img_filename))
+
+            # 원본 이미지 저장
+            DragonLib.copyfile_with_make_parent_dir(src=img_filepath, dst=original_img_filepath)
+            # 결과물 이미지 저장
+            self._save_pics(fake_x_pil=generated_img_pil, filepath=transferred_img_filepath)
+
+    def _test(self, input_dir):
         """
         * 테스트 진행
-        :return: 이미지 생성 및 score 기록
+        :param input_dir: 입력 이미지 파일 디렉터리 위치
+        :return: 이미지 생성 및 파일 경로 반환
         """
 
-        # 각 모델을 테스트 모드로 전환
-        self.modelG.eval()
-        self.modelD.eval()
+        # 생성한 이미지 및 원본 이미지 경로명 담을 리스트
+        result_list = []
 
-        # 배치 마다의 G / D score 담을 리스트
-        batch_score_listG = list()
-        batch_score_listD = list()
+        # 모델을 테스트 모드로 전환
+        self.G.eval()
 
-        # 생성된 이미지 담을 리스트
-        self.pics_list = list()
+        for image_filename in os.listdir(input_dir):
 
-        # a shape: (N, 3, 256, 256)
-        # b shape: (N, 3, 256, 256)
-        for a, b in tqdm(self.test_dataloader, desc='test dataloader', leave=False):
+            # 이미지 읽고 변환하기
+            img_filepath = UtilLib.getNewPath(path=input_dir, add=image_filename)
+            img = self._read_img(filepath=img_filepath)
+            img = img.unsqueeze(dim=0)
 
-            # 현재 배치 사이즈
-            batch_size = a.shape[0]
-            # 패치 한 개 사이즈
-            patch_size = (1, int(a.shape[2] / 16), int(a.shape[3] / 16))
+            # 이미지 생성
+            img = img.to(self.device)
+            generated_img = self.G(img)
 
-            # real image label
-            real_label = torch.ones(size=(batch_size, *patch_size), device=self.device)
-            # fake image label
-            fake_label = torch.zeros(size=(batch_size, *patch_size), device=self.device)
+            # 생성된 이미지와 원본 이미지 경로명 담기
+            result_list.append((generated_img[0], img_filepath))
 
-            # 각 텐서를 해당 디바이스로 이동
-            a = a.to(self.device)
-            b = b.to(self.device)
+        return result_list
 
-            # --------------------
-            #  Test Discriminator
-            # --------------------
+    @staticmethod
+    def _read_img(filepath):
+        """
+        * 이미지 읽고 변환하기
+        :param filepath: 읽어 올 이미지 파일 경로
+        :return: 이미지 읽어 변환 해줌
+        """
 
-            # GAN loss
-            scoreD_GAN_real = self.metric_fn_BCE(self.modelD(b, a), real_label)
-            fake_b = self.modelG(a)
-            scoreD_GAN_fake = self.metric_fn_BCE(self.modelD(fake_b, a), fake_label)
-            scoreD_GAN = scoreD_GAN_real + scoreD_GAN_fake
+        # 데이터 변환 함수
+        transform = transforms.Compose([
+            transforms.Resize(size=(ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=ConstVar.NORMALIZE_MEAN, std=ConstVar.NORMALIZE_STD)
+        ])
 
-            # Total loss
-            scoreD = scoreD_GAN
+        # 이미지 읽기 및 변환
+        img = transform(Image.open(fp=filepath))
 
-            # 배치 마다의 판별자 D score 계산
-            batch_score_listD.append(scoreD)
+        return img
 
-            # ----------------
-            #  Test Generator
-            # ----------------
+    @staticmethod
+    def _convert_img(fake_x, mean, std):
+        """
+        * normalize (혹은 standardize) 된 데이터를 원래 데이터로 되돌리고 값 범위 0 에서 1 사이로 제한해주며 PIL image 로 바꿔주기
+        :param fake_x: 생성된 이미지
+        :param mean: mean 값
+        :param std: std 값
+        :return: 변환된 형태의 PIL image
+        """
 
-            # GAN loss
-            scoreG_GAN = self.metric_fn_BCE(self.modelD(fake_b, a), real_label)
+        # tensor 에서 PIL 로 변환시켜주는 함수
+        transform = transforms.ToPILImage()
 
-            # L1 loss
-            scoreG_L1 = self.metric_fn_L1(fake_b, b)
+        # 정규화된 데이터 원래 데이터로 돌려놓기
+        fake_x = fake_x.cpu().detach() * std[:, None, None] + mean[:, None, None]
 
-            # Total loss
-            scoreG = scoreG_GAN + ConstVar.LAMBDA * scoreG_L1
+        # 값의 범위를 0 에서 1 로 제한
+        fake_x[fake_x > 1] = 1
+        fake_x[fake_x < 0] = 0
 
-            # 배치 마다의 생성자 G score 계산
-            batch_score_listG.append(scoreG)
+        # PIL image 로 변환
+        fake_x_pil = transform(fake_x)
 
-            # a, b, fake_b 이미지 쌍 담기 (설정한 개수 만큼)
-            if len(self.pics_list) < ConstVar.NUM_PICS_LIST:
-                self.pics_list.append((a, b, fake_b))
+        return fake_x_pil
 
-        # score 기록
-        self.score = {
-            ConstVar.KEY_SCORE_G: np.mean(batch_score_listG),
-            ConstVar.KEY_SCORE_D: np.mean(batch_score_listD)
-        }
+    @staticmethod
+    def _save_pics(fake_x_pil, filepath):
+        """
+        * 이미지 파일 저장
+        :param fake_x_pil: 생성된 PIL image 형식의 이미지
+        :param filepath: 저장될 그림 파일 경로
+        :return: 그림 파일 생성됨
+        """
+
+        # 저장하고자 하는 경로의 상위 디렉터리가 존재하지 않는 경우 상위 경로 생성
+        DragonLib.make_parent_dir_if_not_exits(target_path=filepath)
+
+        # 그림 저장
+        fake_x_pil.save(fp=filepath)

@@ -38,7 +38,7 @@ def arguments():
 
     from Common import ConstVar
 
-    # parser 에서 사용될 선택지 목록. 데이터 변환 방향
+    # 이미지 변환 방향
     direction_list = [
         ConstVar.A2B,
         ConstVar.B2A
@@ -70,16 +70,16 @@ def arguments():
                         default=ConstVar.OUTPUT_DIR,
                         dest='output_dir')
 
-    # a2b, b2a 변환 방향 선택
+    # 이미지 변환 방향 선택
     parser.add_argument("--direction",
                         type=str,
-                        help='direction selection ({0} / {1})'.format(
+                        help='select style transfer direction ({0} / {1})'.format(
                             ConstVar.A2B,
                             ConstVar.B2A
                         ),
                         choices=direction_list,
-                        default=ConstVar.B2A,
-                        dest='direction')
+                        default=ConstVar.A2B,
+                        dest="direction")
 
     # 체크포인트 파일 저장 및 학습 진행 기록 빈도수
     parser.add_argument("--tracking_frequency",
@@ -141,11 +141,10 @@ def run_program(args):
 
     from Common import ConstVar
     from DeepLearning.train import Trainer
-    from DeepLearning.test import Tester
     from DeepLearning.dataloader import FACADESDataset
     from DeepLearning.model import GeneratorUNet, Discriminator
-    from DeepLearning.loss import loss_fn_BCE, loss_fn_L1
-    from DeepLearning.metric import bce_loss, l1_loss
+    from DeepLearning.loss import loss_fn_BCE
+    from DeepLearning.metric import bce_loss
 
     # GPU / CPU 설정
     device = ConstVar.DEVICE_CUDA if torch.cuda.is_available() else ConstVar.DEVICE_CPU
@@ -182,19 +181,16 @@ def run_program(args):
                       modelD=modelD,
                       optimizerG=optimizerG,
                       optimizerD=optimizerD,
-                      loss_fn_BCE=loss_fn_BCE,
-                      loss_fn_L1=loss_fn_L1,
+                      loss_fn=None,
+                      metric_fn=None,
                       train_dataloader=train_dataloader,
+                      test_dataloader=test_dataloader,
                       device=device)
 
     # 모델 학습
     trainer.running(num_epoch=args.num_epoch,
                     output_dir=args.output_dir,
                     tracking_frequency=args.tracking_frequency,
-                    Tester=Tester,
-                    test_dataloader=test_dataloader,
-                    metric_fn_BCE=bce_loss,
-                    metric_fn_L1=l1_loss,
                     checkpoint_file=args.checkpoint_file)
 
 

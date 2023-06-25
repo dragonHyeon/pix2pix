@@ -1,4 +1,4 @@
-import os, sys, argparse
+import os, sys, argparse, time
 
 
 def set_path():
@@ -38,7 +38,7 @@ def arguments():
 
     from Common import ConstVar
 
-    # parser 에서 사용될 선택지 목록. 데이터 변환 방향
+    # 이미지 변환 방향
     direction_list = [
         ConstVar.A2B,
         ConstVar.B2A
@@ -49,30 +49,44 @@ def arguments():
                                      description="* Run this to test the model.")
 
     # parser 인자 목록 생성
-    # 테스트 데이터 디렉터리 설정
-    parser.add_argument("--test_data_dir",
-                        type=str,
-                        help='set test data directory',
-                        default=ConstVar.DATA_DIR_TEST,
-                        dest="test_data_dir")
-
-    # a2b, b2a 변환 방향 선택
+    # 이미지 변환 방향 선택
     parser.add_argument("--direction",
                         type=str,
-                        help='direction selection ({0} / {1})'.format(
+                        help='select style transfer direction ({0} / {1})'.format(
                             ConstVar.A2B,
                             ConstVar.B2A
                         ),
                         choices=direction_list,
-                        default=ConstVar.B2A,
-                        dest='direction')
+                        default=ConstVar.A2B,
+                        dest="direction")
+
+    # 입력 이미지 파일 디렉터리 위치
+    parser.add_argument("--input_dir",
+                        type=str,
+                        help='set input image file directory',
+                        default=ConstVar.INPUT_DIR,
+                        dest='input_dir')
 
     # 불러올 체크포인트 파일 경로
     parser.add_argument("--checkpoint_file",
                         type=str,
                         help='set checkpoint file to load if exists',
-                        default=None,
+                        default='C:/dragonhyeon/python_directory/movements/37pix2pix/DATA/checkpoint/epoch00020.ckpt',
                         dest='checkpoint_file')
+
+    # 결과물 파일 저장할 디렉터리 위치
+    parser.add_argument("--output_dir",
+                        type=str,
+                        help='set the directory where output files will be saved',
+                        default=ConstVar.OUTPUT_DIR,
+                        dest='output_dir')
+
+    # 생성된 이미지 파일 저장될 폴더명
+    parser.add_argument("--generated_folder_name",
+                        type=str,
+                        help='set generated folder name which generated images going to be saved',
+                        default=time.time(),
+                        dest="generated_folder_name")
 
     # parsing 한거 가져오기
     args = parser.parse_args()
@@ -88,39 +102,32 @@ def run_program(args):
     """
 
     import torch
-    from torch.utils.data import DataLoader
 
     from Common import ConstVar
     from DeepLearning.test import Tester
-    from DeepLearning.dataloader import FACADESDataset
-    from DeepLearning.model import GeneratorUNet, Discriminator
-    from DeepLearning.metric import bce_loss, l1_loss
+    from DeepLearning.model import GeneratorUNet
+    from DeepLearning import utils
 
     # GPU / CPU 설정
     device = ConstVar.DEVICE_CUDA if torch.cuda.is_available() else ConstVar.DEVICE_CPU
 
-    # 모델 선언
-    modelG = GeneratorUNet()
-    modelD = Discriminator()
-    # 각 모델을 해당 디바이스로 이동
-    modelG.to(device)
-    modelD.to(device)
+    # 체크포인트 파일 불러오기
+    state = utils.load_checkpoint(filepath=args.checkpoint_file)
 
-    # 테스트용 데이터로더 선언
-    test_dataloader = DataLoader(dataset=FACADESDataset(data_dir=args.test_data_dir,
-                                                        direction=args.direction,
-                                                        mode_train_test=ConstVar.MODE_TEST))
+    # 모델 선언 및 가중치 불러오기
+    G = GeneratorUNet()
+    G.load_state_dict(state[ConstVar.KEY_STATE_MODEL_G])
+    # 모델을 해당 디바이스로 이동
+    G.to(device)
 
     # 모델 테스트 객체 선언
-    tester = Tester(modelG=modelG,
-                    modelD=modelD,
-                    metric_fn_BCE=bce_loss,
-                    metric_fn_L1=l1_loss,
-                    test_dataloader=test_dataloader,
+    tester = Tester(G=G,
                     device=device)
 
     # 모델 테스트
-    tester.running(checkpoint_file=args.checkpoint_file)
+    tester.running(input_dir=args.input_dir,
+                   output_dir=args.output_dir,
+                   generated_folder_name=args.generated_folder_name)
 
 
 def main():

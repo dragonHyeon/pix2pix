@@ -7,9 +7,14 @@ DATA_DIR_TEST = '{0}/RES/facades/test/'.format(PROJECT_ROOT_DIRECTORY)
 OUTPUT_DIR = '{0}/DATA/'.format(PROJECT_ROOT_DIRECTORY)
 OUTPUT_DIR_SUFFIX_CHECKPOINT = 'checkpoint'
 OUTPUT_DIR_SUFFIX_PICS = 'pics'
+OUTPUT_DIR_SUFFIX_GENERATED_IMG = 'generated_img/{0}'
+OUTPUT_DIR_SUFFIX_ORIGINAL = 'original'
+OUTPUT_DIR_SUFFIX_TRANSFERRED = 'transferred'
+INPUT_DIR = '{0}/RES/sample/'.format(PROJECT_ROOT_DIRECTORY)
 CHECKPOINT_FILE_NAME = 'epoch{:05d}.ckpt'
 PICS_FILE_NAME = 'epoch{:05d}.png'
 CHECKPOINT_BEST_FILE_NAME = 'best_model.ckpt'
+GENERATED_IMG_FILE_NAME = '{0}.png'
 
 # 학습 / 테스트 모드
 MODE_TRAIN = 'train'
