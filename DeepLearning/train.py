@@ -331,9 +331,9 @@ class Trainer:
         mean = torch.tensor(ConstVar.NORMALIZE_MEAN)
         std = torch.tensor(ConstVar.NORMALIZE_STD)
         plt_pics_list = [(
-            (a.cpu().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
-            (b.cpu().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
-            (fake_b.cpu().detach().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0)
+            (a.cpu().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
+            (b.cpu().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
+            (fake_b.cpu().detach().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0)
         ) for a, b, fake_b in pics_list]
 
         # 시각화 진행
